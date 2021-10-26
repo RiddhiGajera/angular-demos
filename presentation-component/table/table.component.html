@@ -1,0 +1,201 @@
+<p-table
+  #dt
+  [columns]="columns"
+  [value]="data"
+  [showLoader]="true"
+  [rowHover]="true"
+  [scrollable]="true"
+  scrollHeight="{{scrollHeight}}"
+  [resizableColumns]="true"
+  [(selection)]="selectedRowData"
+  [filterDelay]="0"
+  [globalFilterFields]="globalFilterFields"
+  selectionMode="multiple"
+  (onRowSelect)="selectRow()"
+  (onRowUnselect)="selectRow()"
+  styleClass="p-datatable-striped"
+>
+  <ng-template pTemplate="colgroup" let-columns>
+    <colgroup>
+      <col *ngFor="let col of columns" [style.width]="col.width" />
+    </colgroup>
+  </ng-template>
+  <ng-template pTemplate="header" let-columns *ngIf="showHeader">
+    <tr *ngIf="!(tableConfig && tableConfig.showShort)">
+      <th *ngIf="tableConfig && tableConfig.showCheckbox" [style.width]="checkBoxColWidth">
+        <p-tableHeaderCheckbox
+          [disabled]="disableRowSelection(tableConfig, null)"
+          (click)="selectRow()"
+        ></p-tableHeaderCheckbox> tableConfig.disableSelection
+      </th>
+      <th *ngFor="let col of asCols(columns)" pResizableColumn>
+        <div [ngClass]="col.class">
+          {{ col.header }}
+        </div>
+      </th>
+    </tr>
+
+    <tr *ngIf="tableConfig && tableConfig.showShort">
+      <th *ngIf="tableConfig && tableConfig.showCheckbox" [style.width]="checkBoxColWidth">
+        <p-tableHeaderCheckbox
+          [disabled]="disableRowSelection(tableConfig, null)"
+          (click)="selectRow()"
+        ></p-tableHeaderCheckbox>
+      </th>
+      <th
+        *ngFor="let col of asCols(columns)"
+        pResizableColumn
+        [pSortableColumn]="col.field"
+      >
+        <div [ngClass]="col.class">
+          {{ col.header }}
+          <p-sortIcon
+            [field]="col.field"
+          ></p-sortIcon>
+        </div>
+      </th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage" let-columns>
+    <tr>
+        <td [attr.colspan]="asCols(columns) && asCols(columns).length">
+            {{ emptyMessage }}
+        </td>
+    </tr>
+  </ng-template>
+  <ng-template
+    pTemplate="body"
+    let-rowData
+    let-columns="columns"
+    let-rowIndex="rowIndex"
+  >
+    <tr
+        [pSelectableRow]="tableConfig && tableConfig.selection ? rowData : null"
+        [pSelectableRowDisabled]="disableRowSelection(tableConfig, rowData)"
+        [ngClass]="{
+              'test': tableConfig && tableConfig.disableSelection
+        }"
+    >
+      <td *ngIf="tableConfig && tableConfig.showCheckbox" [style.width]="checkBoxColWidth">
+        <p-tableCheckbox
+          [id]="rowIndex"
+          [value]="rowData"
+          [disabled]="rowData['rowCheckboxDisable'] ? rowData['rowCheckboxDisable'] : false"
+          [pSelectableRow]="rowData"
+          [pSelectableRowDisabled]="rowData['rowCheckboxDisable'] ? rowData['rowCheckboxDisable'] : false"
+          *ngIf="tableConfig && !tableConfig.disableSelection"
+        ></p-tableCheckbox>
+        <p-tableCheckbox
+          [id]="rowIndex"
+          [value]="rowData"
+          [disabled]="tableConfig && tableConfig.disableSelection"
+          [pSelectableRow]="rowData"
+          [pSelectableRowDisabled]="tableConfig && tableConfig.disableSelection"
+          *ngIf="tableConfig && tableConfig.disableSelection"
+        ></p-tableCheckbox>
+      </td>
+      <td
+        *ngFor="let col of columns; let i = index"
+        [attr.rowspan]="col.rowSpan && includesRowIndex(i) ? col.rowSpan : 1"
+        [hidden]="includesRowIndex(i) && rowData['hideColumn']"
+      >
+        <div [ngClass]="col.class">
+          <span *ngIf="rowData[col.field] !== undefined && rowData[col.field] !== null; else elseBlock">
+            <span
+              [ngSwitch]="col.pipe"
+              *ngIf="!col.isHtml && !col.showComponent"
+            >
+              <span *ngSwitchCase="'currency'">
+                {{ rowData[col.field] | currency: 'USD':'symbol':'1.0-0' }}
+              </span>
+              <span *ngSwitchDefault>
+                {{
+                  col.render
+                    ? col.render(rowData[col.field], rowData)
+                    : rowData[col.field]
+                }}
+              </span>
+            </span>
+            <span
+              *ngIf="col.isHtml"
+              [innerHTML]="col.render(rowData[col.field], rowData)"
+            ></span>
+            <span
+              *ngIf="col.showComponent && col.componentName === 'appBarGraph'"
+            >
+              <app-bar-graph
+                height="10px"
+                highlightWidth="{{
+                  col.render
+                    ? col.render(rowData[col.field], rowData)
+                    : rowData[col.field]
+                }}"
+                showOut="true"
+              ></app-bar-graph>
+            </span>
+            <span *ngIf="col.showComponent && col.componentName === 'checkBox'" class="align-items-center">
+              <p-checkbox
+                [binary]="col.componentData(rowData).checked"
+                [id]="rowIndex"
+                [value]="col.componentData(rowData).value"
+                [(ngModel)]="rowData[col.componentData(rowData).propertyName]"
+                (onChange)="
+                  rowActions($event, rowData, col.componentData(rowData).name)
+                "
+                [disabled]="col.componentData(rowData).disable"
+                [attr.checked]="col.componentData(rowData).checked"
+                [pTooltip]="col.componentData(rowData).tooltip"
+              ></p-checkbox>
+            </span>
+            <span *ngIf="col.showComponent && col.componentName === 'link'">
+              <span *ngIf="col.componentData(rowData).links; else singleLink">
+                <span *ngFor="let link of col.componentData(rowData).links; let linkIndex = index">
+                  <a
+                    [id]="rowIndex"
+                    (click)="rowActions($event, rowData, link.name)"
+                    class="link-color app-navigator"
+                    [title]="link.label"
+                  >
+                    {{ link.label }} {{ linkIndex !== col.componentData(rowData).links.length - 1 ? ' | ' : ''}}
+                  </a>
+                </span>
+              </span>
+              <ng-template #singleLink>
+                <a
+                  [id]="rowIndex"
+                  (click)="rowActions($event, rowData, col.componentData(rowData).name)"
+                  class="link-color app-navigator"
+                >
+                  {{
+                    col.render
+                      ? col.render(rowData[col.field], rowData)
+                      : rowData[col.field]
+                  }}
+                </a>
+              </ng-template>
+            </span>
+            <span
+              *ngIf="col.showComponent && col.componentName === 'numberInputBox'"
+              [class]="col.componentData(rowData).class"
+            >
+              <input
+                class="view-input form-control"
+                id="{{col.componentData(rowData).name + rowIndex}}"
+                name="{{col.componentData(rowData).name + rowIndex}}"
+                [type]="col.componentData(rowData).type"
+                [class]="col.componentData(rowData).class"
+                [value]="col.componentData(rowData).value"
+                [min]="col.componentData(rowData).min"
+                [max]="col.componentData(rowData).max"
+                [step]="col.componentData(rowData).step"
+                (keydown)="!col.componentData(rowData).disableKeyDown"
+                (mouseup)="rowActions($event, rowData, col.componentData(rowData).name)"
+              /> {{col.componentData(rowData).text}}
+            </span>
+          </span>
+          <ng-template #elseBlock> - </ng-template>
+        </div>
+      </td>
+    </tr>
+  </ng-template>
+</p-table>
